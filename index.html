@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es-PA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Demo de pedidos · Mamá Gallina</title>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="demo-bar">
+  <b>DEMO</b> · Simulación preparada por Meta Technology Global para Mamá Gallina. No es la página oficial y <b>ningún pago es real</b>.
+  <button class="link" data-act="reiniciar">Reiniciar demo</button>
+</div>
+
+<nav class="tabs-movil">
+  <button data-act="vista" data-arg="cliente" class="on">📱 Cliente</button>
+  <button data-act="vista" data-arg="mg">🏪 Mamá Gallina</button>
+</nav>
+
+<main class="escenario" id="escenario" data-vista="cliente">
+  <section class="lado-cliente">
+    <h2 class="titulo-lado">Lo que ve el cliente</h2>
+    <div class="telefono"><div class="pantalla" id="tel"></div></div>
+    <p class="ayuda-tel">Empiece escribiendo en el chat o toque una de las sugerencias.</p>
+  </section>
+  <section class="lado-mg">
+    <h2 class="titulo-lado">Lo que ve Mamá Gallina</h2>
+    <nav class="mg-tabs" id="mg-tabs"></nav>
+    <div class="mg" id="mg"></div>
+  </section>
+</main>
+
+<div class="modal" id="modal" hidden></div>
+<div class="toast-mg" id="toast-mg" hidden></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
