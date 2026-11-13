@@ -5,7 +5,7 @@ const CATEGORIAS = [
   { id: "sopas", nombre: "Sopas", foto: "fotos/sancocho.jpg" },
   { id: "pescados", nombre: "Pescados y mariscos", foto: "fotos/pescado.jpg", nota: "Comida completa" },
   { id: "arroces", nombre: "Arroces y pastas", emoji: "🍚", color: "#fff4d6" },
-  { id: "noche", nombre: "Pa'la noche", emoji: "🍔", color: "#e6eef8" },
+  { id: "noche", nombre: "Pa'la noche", foto: "fotos/patacon.jpg" },
   { id: "desayunos", nombre: "Desayunos", emoji: "🍳", color: "#fff4d6" },
   { id: "acomp", nombre: "Acompañantes", foto: "fotos/ensalada.jpg" },
   { id: "bebidas", nombre: "Bebidas", foto: "fotos/chicha.jpg" },
@@ -17,7 +17,7 @@ const COMPLETA = "Arroz blanco, menestra, presa, ensalada y tajada";
 const PLATOS = [
   // Comida completa
   { id: "pollo-guisado", cat: "completa", nombre: "Pollo guisado", desc: COMPLETA, precio: 3.5, tipo: "completa", foto: "fotos/pollo.jpg", top: true },
-  { id: "carne-guisada", cat: "completa", nombre: "Carne guisada", desc: COMPLETA, precio: 4.0, tipo: "completa", emoji: "🍖" },
+  { id: "carne-guisada", cat: "completa", nombre: "Carne guisada", desc: COMPLETA, precio: 4.0, tipo: "completa", foto: "fotos/carne-guisada.jpg", ia: true },
   { id: "pollo-apanado", cat: "completa", nombre: "Pollo apanado", desc: COMPLETA, precio: 4.75, tipo: "completa", emoji: "🍗" },
   { id: "bistec-picado", cat: "completa", nombre: "Bistec picado con brócoli y zanahoria", desc: COMPLETA, precio: 4.75, tipo: "completa", emoji: "🥩" },
   { id: "ropa-vieja", cat: "completa", nombre: "Ropa vieja a la criolla", desc: COMPLETA, precio: 4.75, tipo: "completa", emoji: "🍖" },
@@ -34,7 +34,7 @@ const PLATOS = [
   { id: "lechona", cat: "completa", nombre: "Lechona Mamá Gallina", desc: COMPLETA, precio: 6.5, tipo: "completa", emoji: "🐷" },
   // Sopas (precio sin arroz; conArroz = precio con arroz)
   { id: "sopa-pollo", cat: "sopas", nombre: "Sopa de pollo", desc: "Con o sin arroz", precio: 3.0, conArroz: 3.5, tipo: "sopa", foto: "fotos/sancocho.jpg", top: true },
-  { id: "sopa-pata", cat: "sopas", nombre: "Sopa de pata", desc: "Con o sin arroz", precio: 3.5, conArroz: 4.0, tipo: "sopa", emoji: "🍲" },
+  { id: "sopa-pata", cat: "sopas", nombre: "Sopa de pata", desc: "Con o sin arroz", precio: 3.5, conArroz: 4.0, tipo: "sopa", foto: "fotos/sopa-pata.jpg", ia: true },
   { id: "sopa-costilla", cat: "sopas", nombre: "Sopa de costilla", desc: "Con o sin arroz", precio: 4.0, conArroz: 4.25, tipo: "sopa", emoji: "🍲" },
   { id: "sopa-jarrete", cat: "sopas", nombre: "Sopa de jarrete con lentejas", desc: "Con o sin arroz", precio: 4.0, conArroz: 4.5, tipo: "sopa", emoji: "🍲" },
   { id: "sopa-gallina", cat: "sopas", nombre: "Sopa de gallina dura", desc: "Con o sin arroz", precio: 4.0, conArroz: 4.5, tipo: "sopa", emoji: "🍲" },
@@ -55,7 +55,7 @@ const PLATOS = [
   { id: "chow-mein", cat: "arroces", nombre: "Chow mein con pollo", desc: "Porción completa", precio: 4.5, tipo: "plato", emoji: "🍜" },
   // Pa'la noche
   { id: "papas-locas", cat: "noche", nombre: "Papas locas sencillas", desc: "Papas, queso gratinado, pollo, carne y salsa de la casa", precio: 6.0, tipo: "plato", emoji: "🍟" },
-  { id: "patacon", cat: "noche", nombre: "Patacón sencillo", desc: "Queso gratinado, pollo, carne y salsa de la casa", precio: 7.0, tipo: "plato", emoji: "🍽️" },
+  { id: "patacon", cat: "noche", nombre: "Patacón sencillo", desc: "Queso gratinado, pollo, carne y salsa de la casa", precio: 7.0, tipo: "plato", foto: "fotos/patacon.jpg", ia: true, top: true },
   { id: "hamb-pollo", cat: "noche", nombre: "Hamburguesa de pollo", desc: "Pollo, bacon, queso, lechuga, tomate y cebolla morada", precio: 7.0, tipo: "plato", emoji: "🍔" },
   { id: "hamb-carne", cat: "noche", nombre: "Hamburguesa de carne", desc: "Carne, bacon, queso, lechuga, tomate y cebolla morada", precio: 8.0, tipo: "plato", emoji: "🍔" },
   { id: "picada", cat: "noche", nombre: "Picada", desc: "1/4 de pollo asado, chorizo, porción de puerco y 1 guarnición", precio: 10.5, tipo: "plato", emoji: "🍗" },
@@ -84,6 +84,21 @@ const PLATOS = [
   { id: "cocada", cat: "postres", nombre: "Cocada Mamá Gallina", desc: "Unidad", precio: 2.0, tipo: "simple", emoji: "🥥" },
   { id: "pie-pina", cat: "postres", nombre: "Pie de piña", desc: "Porción", precio: 1.5, tipo: "simple", emoji: "🥧" },
 ];
+
+// Menú de la semana (ejemplo): los platos de comida completa y pescados cambian cada día, como lo publican en Instagram.
+// Lo demás (sopas, arroces, pa'la noche, desayunos, acompañantes, bebidas y postres) está todos los días.
+const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MENU_SEMANA = {
+  1: ["pollo-guisado", "carne-guisada", "bistec-picado", "ropa-vieja", "filete-apanado"],
+  2: ["pollo-guisado", "pollo-apanado", "mondongo", "puerco-guisado", "pescado-frito"],
+  3: ["pollo-guisado", "carne-frita", "gallina-dura", "chuleta", "bacalao"],
+  4: ["pollo-guisado", "bistec-entero", "lengua", "costilla", "camarones"],
+  5: ["pollo-guisado", "carne-guisada", "filete-pechuga", "lechona", "pescado-frito", "pargo"],
+  6: ["pollo-guisado", "carne-asada", "ropa-vieja", "chuleta", "pescado-frito"],
+};
+const DIA_HOY = new Date().getDay() || 6; // el domingo se muestra el menú del sábado
+const CAMBIA_CADA_DIA = ["completa", "pescados"];
+const hayHoy = (p) => !CAMBIA_CADA_DIA.includes(p.cat) || MENU_SEMANA[DIA_HOY].includes(p.id);
 
 // Opciones por tipo de plato. p = lo que suma al precio.
 function gruposDe(plato) {

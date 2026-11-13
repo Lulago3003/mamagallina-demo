@@ -324,3 +324,31 @@ input { font: inherit; }
   .kpis4 { grid-template-columns: 1fr 1fr; }
   .dgrid { grid-template-columns: 1fr; }
 }
+
+/* ── Versión 3: fotos, menú del día, cupos y cliente frecuente ── */
+.sub-fila { display: flex; justify-content: space-between; align-items: center; }
+.sub-fila button { font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--rojo); font-weight: 800; }
+.link-rojo { color: var(--rojo); font-weight: 700; text-decoration: underline; font-size: 12.5px; }
+.nota-fotos { font-size: 11px; color: #a0a0a6; text-align: center; margin: 14px 20px 0; }
+.ia-tag { position: absolute; right: 10px; bottom: 10px; background: rgba(0,0,0,.55); color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 8px; }
+.horas { grid-template-columns: repeat(3, 1fr); }
+.hora { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 0; }
+.hora small { font-size: 10.5px; font-weight: 600; color: var(--gris); }
+.hora.on small { color: var(--rojo); }
+.hora.pocos small { color: #b26a00; font-weight: 800; }
+.hora.lleno small { text-decoration: none; }
+.banner.premio { border: 1.5px solid #e8a400; background: #fff8e6; }
+.premio-sec { background: #fff8e6; }
+.premio-sec small { color: var(--gris); font-weight: 400; }
+.sellos { margin: 10px 16px 0; }
+.sellos .puntos { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin: 4px 0 6px; }
+.sellos .puntos i { aspect-ratio: 1; border-radius: 50%; border: 2px dashed #d1d1d6; display: grid; place-items: center; font-style: normal; font-size: 12px; }
+.sellos .puntos i.on { background: var(--rojo); border: 2px solid var(--rojo); }
+.sellos small { font-size: 11.5px; color: var(--gris); }
+.cupos-hoy { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cupos-hoy span { font-size: 12.5px; padding: 5px 10px; border-radius: 12px; background: #e8f3e7; color: #2f6b2e; font-weight: 700; }
+.cupos-hoy span.pocos { background: #fff4d6; color: #9a6a00; }
+.cupos-hoy span.lleno { background: #fbe7e9; color: #c90d20; }
+.semana .fila { align-items: flex-start; gap: 12px; font-size: 13px; }
+.semana .fila b { min-width: 92px; }
+.semana .fila.hoy { background: #fff8e6; border-radius: 8px; padding: 8px; }

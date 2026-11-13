@@ -2,7 +2,7 @@
 // Las pestañas del mismo navegador se sincronizan con localStorage + BroadcastChannel.
 "use strict";
 
-const CLAVE = "mg-demo-v2";
+const CLAVE = "mg-demo-v3";
 const $ = (s) => document.querySelector(s);
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const B = (n) => "B/. " + Number(n).toFixed(2);
@@ -61,7 +61,8 @@ function semilla() {
   const p = (persona, nombre, precio, desc = "") => ({ persona, nombre, precio, desc });
   const o = (n, fonda, nombre, estado, canal, pago, hora, platos, hace) => ({ n, fonda, nombre, estado, canal, pago, hora, platos, total: r2(platos.reduce((a, x) => a + x.precio, 0)), creado: t - hace * min, cliente: nombre });
   return {
-    next: { "Obarrio": 47, "Vía España": 128 }, cupo: 12, agotados: ["lechona", "pargo"], empresas: EMPRESAS,
+    next: { "Obarrio": 47, "Vía España": 128 }, cupo: 12,
+    ocupados: { "Obarrio": { "11:45": 5, "12:00": 12, "12:15": 9, "12:30": 6, "12:45": 3, "13:00": 1 }, "Vía España": { "11:45": 3, "12:00": 12, "12:15": 7, "12:30": 4, "12:45": 2, "13:00": 0 } }, agotados: ["lechona", "pargo"], empresas: EMPRESAS,
     pedidos: [
       ...generarDia("Obarrio", 1, 40, 7),
       ...generarDia("Vía España", 101, 25, 11),
@@ -88,7 +89,7 @@ window.addEventListener("storage", (e) => { if (e.key === CLAVE) { D = leer(loca
 const S = Object.assign({
   pantalla: "chat", fonda: null, chat: [], cat: null, busca: "", editando: null, carrito: [], hora: "12:15", pago: "Yappy", ruc: false,
   avisados: {}, visto: {}, vista: "cliente", mgTab: "kommo", mgFonda: "Obarrio", duenoFonda: "Las dos", auto: false,
-  grupo: null, guardado: null, ultimoCarrito: null, pagandoOrden: null, empresa: "e1",
+  grupo: null, guardado: null, ultimoCarrito: null, pagandoOrden: null, empresa: "e1", sellos: 8, premio: false, usarPremio: true,
 }, leer(sessionStorage, CLAVE + "-tel", {}));
 S.escribiendo = false; S.procesando = false;
 function guardarTel() { const c = { ...S }; delete c.escribiendo; delete c.procesando; guardarEn(sessionStorage, CLAVE + "-tel", c); }
@@ -137,6 +138,11 @@ function precioEdit(ed) {
   return { precio: r2(p), desc: partes.join(" · ") };
 }
 const totalMio = () => r2(S.carrito.reduce((a, c) => a + c.precio, 0));
+const descuentoPremio = () => (S.premio && S.usarPremio && S.carrito.length && S.pago !== "Empresa") ? r2(Math.min(4, Math.max(...S.carrito.map((c) => c.precio)))) : 0;
+const totalPagar = () => r2(totalMio() - descuentoPremio());
+const SLOTS = ["11:45", "12:00", "12:15", "12:30", "12:45", "13:00"];
+const quedan = (f, h) => Math.max(0, D.cupo - (((D.ocupados || {})[f] || {})[h] || 0));
+function horaValida() { if (!S.fonda) return; if (quedan(S.fonda, S.hora) <= 0) { const h = SLOTS.find((x) => x >= "12:00" && quedan(S.fonda, x) > 0) || SLOTS.find((x) => quedan(S.fonda, x) > 0); if (h) S.hora = h; } }
 const totalGrupo = () => r2(totalMio() + (S.grupo ? S.grupo.otros.reduce((a, o) => a + o.precio, 0) : 0));
 
 // ───────── Pantallas del teléfono
@@ -165,7 +171,7 @@ function itemHTML(p) {
 function listaMenu() {
   const q = S.busca.trim().toLowerCase();
   if (q) {
-    const r = PLATOS.filter((p) => (p.nombre + " " + p.desc).toLowerCase().includes(q));
+    const r = PLATOS.filter(hayHoy).filter((p) => (p.nombre + " " + p.desc).toLowerCase().includes(q));
     return `<div class="sub">${r.length} resultado${r.length === 1 ? "" : "s"}</div>` + (r.map(itemHTML).join("") || '<div class="vacio">No encontramos ese plato hoy.</div>');
   }
   if (!S.cat) {
@@ -173,13 +179,18 @@ function listaMenu() {
     if (S.grupo) banners.push(`<button class="banner verde" data-act="ir" data-arg="grupo"><span>👥</span><span><b>Pedido compartido ${esc(S.grupo.codigo)}</b><br>${S.grupo.otros.length} compañero${S.grupo.otros.length === 1 ? "" : "s"} ya pidieron · se cierra a las ${S.grupo.cierre}</span></button>`);
     else banners.push(`<button class="banner" data-act="grupo-nuevo"><span>👥</span><span><b>¿Pedido para la oficina?</b><br>Mande un enlace al grupo y que cada quien pida y pague lo suyo.</span></button>`);
     if (S.guardado && !S.grupo) banners.push(`<button class="banner gris" data-act="repetir"><span>↻</span><span><b>Repetir «pedido de la oficina»</b><br>${S.guardado.length} platos · ${B(S.guardado.reduce((a, c) => a + c.precio, 0))}</span></button>`);
-    return `${banners.join("")}<div class="sub">Categorías</div><div class="cats">${CATEGORIAS.map((c) => `<button class="cat" data-act="cat" data-arg="${c.id}">${imgDe(c)}${esc(c.nombre)}</button>`).join("")}</div>
-      <div class="sub">Lo más pedido hoy</div>${PLATOS.filter((p) => p.top).map(itemHTML).join("")}`;
+    if (S.premio && !S.grupo) banners.unshift(`<div class="banner premio"><span>🎁</span><span><b>¡Tiene un almuerzo gratis!</b><br>Completó 10 pedidos. Se descuenta solo al pagar.</span></div>`);
+    const delDia = MENU_SEMANA[DIA_HOY].map(platoPor).filter(Boolean);
+    return `${banners.join("")}<div class="sub sub-fila"><span>Platos de hoy · ${DIAS[DIA_HOY]}</span><button data-act="semana">📅 Menú de la semana</button></div>${delDia.map(itemHTML).join("")}
+      <div class="sub">Categorías</div><div class="cats">${CATEGORIAS.map((c) => `<button class="cat" data-act="cat" data-arg="${c.id}">${imgDe(c)}${esc(c.nombre)}</button>`).join("")}</div>
+      <div class="sub">También todos los días</div>${PLATOS.filter((p) => p.top && !CAMBIA_CADA_DIA.includes(p.cat)).map(itemHTML).join("")}
+      <p class="nota-fotos">Fotos ilustrativas. Platos y precios del menú de Mamá Gallina Obarrio.</p>`;
   }
   const c = catPor(S.cat);
   return `<div class="chips"><button data-act="cat" data-arg="">Inicio</button>${CATEGORIAS.map((x) => `<button class="${x.id === S.cat ? "on" : ""}" data-act="cat" data-arg="${x.id}">${esc(x.nombre)}</button>`).join("")}</div>
     ${c.nota ? `<div class="nota-cat">${esc(c.nota)}${c.id === "completa" ? " · Arroz especial B/. 1.00 adicional" : ""}</div>` : ""}
-    ${PLATOS.filter((p) => p.cat === S.cat).map(itemHTML).join("")}`;
+    ${CAMBIA_CADA_DIA.includes(S.cat) ? `<div class="nota-cat"><b>Hoy ${DIAS[DIA_HOY].toLowerCase()}</b>: estos platos cambian cada día. <button class="link-rojo" data-act="semana">Ver la semana</button></div>` : ""}
+    ${PLATOS.filter((p) => p.cat === S.cat && hayHoy(p)).map(itemHTML).join("")}`;
 }
 function barraCarrito() {
   const n = S.carrito.length; if (!n) return "";
@@ -201,7 +212,7 @@ function vistaPlato() {
     }).join("");
     return `<div class="sec"><h4><span>${g.titulo}</span>${g.tipo === "radio" ? "<em>Elija 1</em>" : ""}</h4>${ops}</div>`;
   }).join("");
-  const hero = imgDe(pl, "hero").replace(/<\/div>$/, '<button class="x" data-act="ir" data-arg="menu" aria-label="Cerrar">✕</button></div>');
+  const hero = imgDe(pl, "hero").replace(/<\/div>$/, `<button class="x" data-act="ir" data-arg="menu" aria-label="Cerrar">✕</button>${pl.foto ? '<span class="ia-tag">Foto ilustrativa</span>' : ""}</div>`);
   return `<div class="scroll">${hero}
     <div style="padding:8px 16px 0"><div style="font-size:21px;font-weight:800">${esc(pl.nombre)}</div><div style="font-size:12.5px;color:var(--gris)">${esc(pl.desc)} · <b style="color:var(--tinta)">${B(pl.precio)}</b></div></div>
     <div class="sec"><h4>¿PARA QUIÉN ES? (PLATO ${S.carrito.length + 1})</h4><input class="nombre-in" id="persona" placeholder="Ej.: Ana" value="${esc(ed.persona)}" maxlength="24" autocomplete="off"></div>
@@ -216,22 +227,24 @@ function vistaCarrito() {
   const n = S.carrito.length, emp = D.empresas.find((e) => e.id === S.empresa);
   const lista = S.carrito.map((c, i) => filaPlato(c, i)).join("") || '<div class="vacio" style="padding:10px">Todavía no ha agregado su plato.</div>';
   const otros = S.grupo ? `<div class="sec"><h4><span>👥 COMPAÑEROS · PEDIDO ${esc(S.grupo.codigo)}</span><em>Se cierra ${S.grupo.cierre}</em></h4>${S.grupo.otros.map((o) => `<div class="pl"><div class="f">🧑‍💼</div><div class="t"><b>${esc(o.persona)}</b> · ${esc(o.nombre)}<small>${esc(o.desc)}</small></div><span class="ok-mini">Pagó ✓</span></div>`).join("") || '<div class="vacio" style="padding:8px">Nadie más ha pedido todavía.</div>'}</div>` : "";
-  const horas = ["12:00", "12:15", "12:30", "12:45"].map((h) => h === "12:00" ? `<span class="hora lleno" title="Cupo lleno">${h}</span>` : `<button class="hora ${S.hora === h ? "on" : ""}" data-act="hora" data-arg="${h}">${h}</button>`).join("");
+  horaValida();
+  const horas = SLOTS.map((h) => { const q = quedan(S.fonda, h); return q <= 0 ? `<span class="hora lleno" title="Cupo lleno">${h}<small>lleno</small></span>` : `<button class="hora ${S.hora === h ? "on" : ""} ${q <= 3 ? "pocos" : ""}" data-act="hora" data-arg="${h}">${h}<small>quedan ${q}</small></button>`; }).join("");
+  const premio = S.premio && S.pago !== "Empresa" ? `<div class="sec premio-sec"><button class="fila" data-act="usar-premio" style="width:100%"><span>🎁 <b>Almuerzo gratis</b> de cliente frecuente<br><small>Se descuenta un plato de hasta B/. 4.00</small></span><span class="sw ${S.usarPremio ? "on" : ""}"></span></button></div>` : "";
   const pagos = [["Yappy", "Yappy"], ["Tarjeta", "Visa / MC"], ["Empresa", "🏢 Empresa"]].map(([k, t]) => `<button class="${S.pago === k ? "on" : ""}" data-act="pago" data-arg="${k}">${t}</button>`).join("");
   const empresaInfo = S.pago === "Empresa" ? `<div class="emp-info">Se carga a <b>${esc(emp.nombre)}</b> (cuenta aprobada por Mamá Gallina). No paga ahora: la empresa recibe <b>una sola factura a fin de mes</b>.</div>` : "";
-  const total = S.grupo ? totalGrupo() : totalMio();
+  const total = S.grupo ? totalGrupo() : totalPagar();
   return `${barraEstado()}
   <div class="cab-simple"><button class="v" data-act="ir" data-arg="menu">← Seguir pidiendo</button><h2>${S.grupo ? "Pedido compartido" : n > 1 ? "Pedido de la oficina" : "Su pedido"}</h2></div>
   <div class="scroll">
     ${otros}
     <div class="sec"><h4>${S.grupo ? "SU PARTE" : `${n} PLATO${n === 1 ? "" : "S"} · CADA UNO CON SU NOMBRE`}</h4>${lista}<button class="op" data-act="ir" data-arg="menu" style="color:var(--rojo);font-weight:700;border:none">+ Agregar otro plato</button></div>
     ${S.grupo ? "" : `<div class="sec"><h4>¿POSTRE PARA LA OFICINA?</h4><div class="sug2"><button data-act="postre" data-arg="flan">+ Flan de la casa<br>${B(2.5)}</button><button data-act="postre" data-arg="arroz-leche">+ Arroz con leche<br>${B(2)}</button></div></div>`}
-    <div class="sec"><h4>RETIRA EN ${esc(S.fonda || "").toUpperCase()} · ¿A QUÉ HORA PASA?</h4><div class="horas">${horas}</div><div style="font-size:11.5px;color:var(--gris);margin-top:6px">Las 12:00 ya están llenas: así la cocina no se satura.</div></div>
+    <div class="sec"><h4>RETIRA EN ${esc(S.fonda || "").toUpperCase()} · ¿A QUÉ HORA PASA?</h4><div class="horas">${horas}</div><div style="font-size:11.5px;color:var(--gris);margin-top:6px">La cocina acepta ${D.cupo} pedidos cada 15 minutos para no saturarse. Pida temprano y asegure su hora.</div></div>${premio}
     <div class="sec"><h4>PAGO · BANCO GENERAL</h4><div class="pago">${pagos}</div>${empresaInfo}
       ${S.pago === "Empresa" ? "" : `<button class="fila" data-act="ruc" style="width:100%"><span>Factura con RUC de la empresa</span><span class="sw ${S.ruc ? "on" : ""}"></span></button>`}</div>
-    <div class="sec"><div class="total"><span>${S.grupo ? "Total del pedido compartido" : "Total (se suma solo)"}</span><b>${B(total)}</b></div>${S.grupo ? `<div class="total" style="margin-top:4px;color:var(--rojo)"><span>Usted paga solo su parte</span><b>${B(totalMio())}</b></div>` : ""}</div>
+    <div class="sec">${descuentoPremio() ? `<div class="total" style="color:var(--verde);margin-bottom:4px"><span>🎁 Almuerzo gratis</span><b>− ${B(descuentoPremio())}</b></div>` : ""}<div class="total"><span>${S.grupo ? "Total del pedido compartido" : "Total (se suma solo)"}</span><b>${B(total)}</b></div>${S.grupo ? `<div class="total" style="margin-top:4px;color:var(--rojo)"><span>Usted paga solo su parte</span><b>${B(totalPagar())}</b></div>` : ""}</div>
     <div class="espacio"></div></div>
-  <button class="barra" data-act="pagar" ${n ? "" : "disabled"}><span>${S.pago === "Empresa" ? "Cargar a la cuenta" : S.grupo ? "Pagar mi parte y cerrar" : "Pagar"}</span><span>${B(S.grupo ? totalMio() : totalMio())}</span></button>`;
+  <button class="barra" data-act="pagar" ${n ? "" : "disabled"}><span>${S.pago === "Empresa" ? "Cargar a la cuenta" : S.grupo ? "Pagar mi parte y cerrar" : "Pagar"}</span><span>${B(totalPagar())}</span></button>`;
 }
 function vistaGrupo() {
   const g = S.grupo;
@@ -252,7 +265,7 @@ function vistaGrupo() {
 }
 function vistaPago() {
   const orden = S.pagandoOrden ? D.pedidos.find((p) => p.n === S.pagandoOrden) : null;
-  const total = B(orden ? orden.total : totalMio());
+  const total = B(orden ? orden.total : totalPagar());
   if (S.procesando) return `${barraEstado()}<div class="pago-sim"><div class="spinner"></div><h2>Confirmando el pago…</h2><p>Simulación: no se cobra nada.</p></div>`;
   const volver = orden ? "chat" : "carrito";
   if (S.pago !== "Tarjeta") return `${barraEstado()}
@@ -278,6 +291,7 @@ function vistaListo() {
     <div class="ok"><div class="ck">✓</div><h2>${empresa ? "¡Cargado a la cuenta!" : p.compartido ? "¡Pedido compartido cerrado!" : `¡Pagado con ${p.pago === "Tarjeta" ? "tarjeta" : "Yappy"}!`}</h2><p>${B(p.total)} · ${p.platos.length} plato${p.platos.length === 1 ? "" : "s"}${empresa ? " · factura a fin de mes" : " · Banco General"}</p></div>
     <div class="num"><small>SU NÚMERO DE RETIRO</small><div>${num3(p.n)}</div><span>${esc(p.fonda)} · ${p.hora} · Ventanilla express</span></div>
     <div class="sec" style="margin:10px 16px 0"><h4>ESTADO DE SU PEDIDO (SE ACTUALIZA SOLO)</h4>${lineaEstado(p.estado)}</div>
+    <div class="sec sellos"><h4><span>⭐ CLIENTE FRECUENTE</span><em>${S.premio ? "¡Premio listo!" : `${S.sellos} de 10`}</em></h4><div class="puntos">${Array.from({ length: 10 }, (_, i) => `<i class="${S.premio || i < S.sellos ? "on" : ""}">${i === 9 ? "🎁" : ""}</i>`).join("")}</div><small>${S.premio ? "Su próximo almuerzo va por la casa." : "El décimo almuerzo es gratis. Se cuenta solo con su número de WhatsApp."}</small></div>
     <div style="padding:0 16px"><button class="btn-grande verde" data-act="ir" data-arg="chat">💬 Volver a WhatsApp</button></div>
     <div style="text-align:center;font-size:12px;color:var(--gris);margin:6px 24px 0">El resumen ya le llegó al chat de Mamá Gallina.</div>
     <button class="fac" data-act="recibo" data-arg="${p.fonda}|${p.n}"><span>🧾 Comprobante del pedido</span><b>Ver</b></button>
@@ -341,7 +355,7 @@ function vistaKommo() {
 function vistaCocina() {
   const lista = delaFonda().filter((p) => p.n);
   const tk = (p) => {
-    const items = p.platos.map((x) => `<li><b>${esc(x.persona)}</b>${esc(x.nombre)}${x.desc ? `<small>${esc(x.desc)}</small>` : ""}</li>`).join("");
+    const items = p.platos.filter((x) => x.precio >= 0).map((x) => `<li><b>${esc(x.persona)}</b>${esc(x.nombre)}${x.desc ? `<small>${esc(x.desc)}</small>` : ""}</li>`).join("");
     const k = clavePed(p);
     const bots = p.estado === "pagado" ? `${p.platos.length > 1 ? `<button class="b az" data-act="etiquetas" data-arg="${k}">🏷 ${p.platos.length} etiquetas</button>` : ""}<button class="b" data-act="estado" data-arg="${k}|cocina">Empezar</button>`
       : p.estado === "cocina" ? `<button class="b" data-act="estado" data-arg="${k}|listo">Marcar listo</button>` : `<button class="b" data-act="estado" data-arg="${k}|entregado">Entregado</button>`;
@@ -362,13 +376,14 @@ function vistaTV() {
     <div class="der"><h4>✓ LISTOS · RETIRE AQUÍ</h4>${listos.map(fila).join("") || '<div class="pie">Todavía no hay pedidos listos.</div>'}<div class="pie">Ya está pagado: diga su número en la ventanilla express y llévese su pedido.</div></div></div></div>`;
 }
 function vistaPanelMenu() {
-  const grupos = CATEGORIAS.map((c) => `<div class="grupo"><h5>${esc(c.nombre)}</h5>${PLATOS.filter((p) => p.cat === c.id).map((p) => {
+  const grupos = CATEGORIAS.map((c) => `<div class="grupo"><h5>${esc(c.nombre)}${CAMBIA_CADA_DIA.includes(c.id) ? ` · hoy ${DIAS[DIA_HOY].toLowerCase()}` : ""}</h5>${PLATOS.filter((p) => p.cat === c.id && hayHoy(p)).map((p) => {
     const off = D.agotados.includes(p.id);
     return `<button class="pm ${off ? "off" : ""}" data-act="agotar" data-arg="${p.id}"><span>${esc(p.nombre)} · ${p.precio.toFixed(2)}</span><span class="sw ${off ? "" : "on"}"></span></button>`;
   }).join("")}</div>`).join("");
-  return `<div class="mg-bar"><h3>Menú del día (celular de la encargada)</h3><div class="f">${filtroFonda()}<button data-act="copiar-menu">📋 Copiar menú de ayer</button></div></div>
+  return `<div class="mg-bar"><h3>Menú del día (celular de la encargada)</h3><div class="f">${filtroFonda()}<button data-act="semana">📅 Menú de la semana</button><button data-act="copiar-menu">📋 Copiar menú de ayer</button></div></div>
     <div class="panel-menu"><p style="font-size:13.5px;color:var(--gris)">Lo que apague aquí sale como <b>AGOTADO</b> en el menú del cliente al instante. Pruebe apagar el pollo guisado y mire el teléfono.</p>
     <div class="cupo" style="margin-top:10px"><span>Pedidos que acepta la cocina cada 15 minutos:</span><button data-act="cupo" data-arg="-1">−</button><b>${D.cupo}</b><button data-act="cupo" data-arg="1">+</button></div>
+    <div class="cupos-hoy">${SLOTS.map((h) => { const q = quedan(S.mgFonda, h); return `<span class="${q <= 0 ? "lleno" : q <= 3 ? "pocos" : ""}">${h} · ${q <= 0 ? "lleno" : "quedan " + q}</span>`; }).join("")}</div>
     <div class="pm-cols">${grupos}</div></div>`;
 }
 function barras(datos, unidad = "") {
@@ -406,7 +421,8 @@ function vistaDueno() {
           <div class="fila"><span>Chat de WhatsApp</span><b>${pct(porCanal((p) => p.canal === "WhatsApp"))}</b></div></div>
         <div class="dcaja"><h5>Clientes que más repiten (este mes)</h5>
           ${Object.entries(clientes).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v], i) => `<div class="fila"><span>${esc(k)}</span><b>${v + 6 - i} pedidos</b></div>`).join("")}
-          <p class="nota-mini">Con estos datos se puede premiar a los que más piden (por ejemplo, el décimo almuerzo gratis).</p></div>
+          <div class="fila"><span>🎁 Almuerzos gratis entregados este mes</span><b>23</b></div>
+          <p class="nota-mini">Cada cliente lleva su tarjeta de sellos con su número de WhatsApp: el décimo almuerzo es gratis.</p></div>
         ${comparar}
       </div>
       <p class="nota-mini">Datos de ejemplo de un día. Los pedidos que haga en la demo se suman aquí al instante.</p>
@@ -501,7 +517,9 @@ function crearPedido() {
   const mios = S.carrito.map((c) => ({ persona: c.persona, nombre: platoPor(c.id).nombre, precio: c.precio, desc: c.desc }));
   const otros = S.grupo ? S.grupo.otros.map((o) => ({ persona: o.persona, nombre: o.nombre, precio: o.precio, desc: o.desc })) : [];
   const platos = [...mios, ...otros];
+  const desc = descuentoPremio(); if (desc) platos.push({ persona: "Premio", nombre: "Almuerzo gratis (cliente frecuente)", precio: -desc, desc: "" });
   const empresa = S.pago === "Empresa" ? S.empresa : null;
+  D.ocupados[f] = D.ocupados[f] || {}; D.ocupados[f][S.hora] = (D.ocupados[f][S.hora] || 0) + 1;
   const nombre = S.grupo ? "Compartido · " + S.carrito[0].persona : platos.length > 1 ? "Oficina · " + platos[0].persona : platos[0].persona;
   const pago = empresa ? "Cuenta de empresa" : S.pago === "Tarjeta" ? "Tarjeta" : "Yappy";
   const chat = miChat(); if (chat) D.pedidos = D.pedidos.filter((p) => p !== chat);
@@ -509,7 +527,9 @@ function crearPedido() {
   S.avisados[`${f}|${n}`] = "pagado"; S.ultimo = n; S.fondaUltimo = f;
   const lineas = platos.map((p) => `• ${esc(p.persona)}: ${esc(p.nombre)}${p.desc ? ", " + esc(p.desc.toLowerCase()) : ""}`).join("\n");
   const cab = empresa ? `🏢 <b>Pedido ${num3(n)} cargado a la cuenta de la empresa</b>` : S.grupo ? `👥 <b>Pedido compartido ${num3(n)} cerrado</b> · todos pagaron` : `✅ <b>Pedido ${num3(n)} pagado</b>`;
-  msg("in", `${cab} · ${B(platos.reduce((a, p) => a + p.precio, 0))}\n${lineas}\n📍 Retira ${S.hora} en ${esc(f)}, ventanilla express`);
+  msg("in", `${cab} · ${B(platos.reduce((a, p) => a + p.precio, 0))}\n${lineas}\n📍 Retira ${S.hora} en ${esc(f)}, ventanilla express${desc ? "" : `\n⭐ Lleva ${Math.min(10, S.sellos + 1)} de 10 para su almuerzo gratis`}`);
+  if (desc) { S.premio = false; S.usarPremio = true; }
+  else { S.sellos += 1; if (S.sellos >= 10) { S.sellos = 0; S.premio = true; setTimeout(() => bot("🎁 <b>¡Completó 10 pedidos!</b> Su próximo almuerzo va por la casa. Se descuenta solo cuando pague."), 1800); } }
   S.ultimoCarrito = S.carrito.slice(); S.carrito = []; S.grupo = null; S.pantalla = "listo";
   guardar(); toastMG(`Nuevo pedido ${num3(n)} (${f}): entró solo a Kommo y a la cocina.`);
   setTimeout(() => { const p = D.pedidos.find((x) => x.n === n && x.fonda === f); if (p && p.fresco) { p.fresco = false; guardarEn(localStorage, CLAVE, D); } }, 4000);
@@ -555,6 +575,12 @@ document.addEventListener("click", (e) => {
     case "quitar": S.carrito.splice(+arg, 1); break;
     case "postre": { const pl = platoPor(arg); S.carrito.push({ id: arg, persona: "Para todos", sel: {}, precio: pl.precio, desc: "Postre" }); break; }
     case "hora": S.hora = arg; break;
+    case "usar-premio": S.usarPremio = !S.usarPremio; break;
+    case "semana": {
+      const filas = [1, 2, 3, 4, 5, 6].map((d) => `<div class="fila${d === DIA_HOY ? " hoy" : ""}"><b>${DIAS[d]}${d === DIA_HOY ? " (hoy)" : ""}</b><span>${MENU_SEMANA[d].map((id) => esc(platoPor(id).nombre)).join(", ")}</span></div>`).join("");
+      modal(`<h3>Menú de la semana</h3><div class="sub2">Platos de comida completa y pescados. Las sopas, arroces, desayunos, bebidas y postres están todos los días. (Ejemplo)</div><div class="recibo semana">${filas}</div><div class="acciones"><button data-act="cerrar">Cerrar</button></div>`);
+      return;
+    }
     case "pago": S.pago = arg; break;
     case "ruc": S.ruc = !S.ruc; break;
     case "pagar": if (S.pago === "Empresa") { crearPedido(); break; } S.pagandoOrden = null; S.pantalla = "pago"; break;
@@ -598,7 +624,7 @@ document.addEventListener("click", (e) => {
     case "auto": S.auto = !S.auto; guardarTel(); pintarMG(); return;
     case "etiquetas": {
       const p = buscarPedido(arg);
-      modal(`<h3>Etiquetas · ${num3(p.n)}</h3><div class="sub2">Se imprimen en la impresora térmica, una por envase.</div><div class="etiquetas">${p.platos.map((x) => `<div class="etq"><div class="n">${num3(p.n)} · ${p.hora} · ${esc(p.fonda).toUpperCase()}</div><div class="q">${esc(x.persona).toUpperCase()}</div>${esc(x.nombre)}${x.desc ? "<br>" + esc(x.desc) : ""}</div>`).join("")}</div><div class="acciones"><button data-act="cerrar">Listo</button></div>`);
+      modal(`<h3>Etiquetas · ${num3(p.n)}</h3><div class="sub2">Se imprimen en la impresora térmica, una por envase.</div><div class="etiquetas">${p.platos.filter((x) => x.precio >= 0).map((x) => `<div class="etq"><div class="n">${num3(p.n)} · ${p.hora} · ${esc(p.fonda).toUpperCase()}</div><div class="q">${esc(x.persona).toUpperCase()}</div>${esc(x.nombre)}${x.desc ? "<br>" + esc(x.desc) : ""}</div>`).join("")}</div><div class="acciones"><button data-act="cerrar">Listo</button></div>`);
       return;
     }
     case "ver-pedido": {
@@ -625,6 +651,7 @@ document.addEventListener("click", (e) => {
     case "armar-enviar": {
       const c = D.pedidos.find((p) => p.id === chatAbierto); if (!c || !armado.length) return;
       const n = D.next[c.fonda]++, hora = $("#armar-hora").value;
+      D.ocupados[c.fonda] = D.ocupados[c.fonda] || {}; D.ocupados[c.fonda][hora] = (D.ocupados[c.fonda][hora] || 0) + 1;
       const platos = []; armado.forEach((x) => { for (let i = 0; i < x.cant; i++) platos.push({ persona: c.nombre.replace(" (demo)", ""), nombre: x.nombre, precio: x.precio, desc: "" }); });
       const total = r2(platos.reduce((a, p) => a + p.precio, 0));
       D.pedidos.push({ n, fonda: c.fonda, nombre: c.nombre.replace(" (demo)", ""), estado: "porpagar", canal: "WhatsApp", pago: null, hora, platos, total, creado: Date.now(), tab: c.tab, cliente: c.nombre });
