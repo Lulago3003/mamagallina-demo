@@ -352,3 +352,18 @@ input { font: inherit; }
 .semana .fila { align-items: flex-start; gap: 12px; font-size: 13px; }
 .semana .fila b { min-width: 92px; }
 .semana .fila.hoy { background: #fff8e6; border-radius: 8px; padding: 8px; }
+
+/* ── Versión 4: precios editables y porciones ── */
+.pill.rojo { background: #fdecee; color: var(--rojo); }
+.pm { display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center; }
+.pm .pm-n { font-size: 13.5px; }
+.pm.off .pm-n { color: #aaa; text-decoration: line-through; }
+.pm-p { font-size: 12.5px; color: var(--gris); white-space: nowrap; }
+.pm-p input { width: 64px; padding: 4px 6px; border: 1px solid #d9dee4; border-radius: 7px; font-size: 13px; text-align: right; }
+.pm-q { display: inline-flex; align-items: center; gap: 4px; }
+.pm-q button { min-width: 24px; height: 24px; border-radius: 12px; border: 1.5px solid var(--azul); color: var(--azul); font-weight: 800; font-size: 12px; padding: 0 6px; }
+.pm-q b { min-width: 22px; text-align: center; font-size: 14px; }
+.pm-q b.poco { color: #b26a00; } .pm-q b.cero { color: var(--rojo); }
+.pm .sw { cursor: pointer; }
+.pm-cols { columns: 1; }
+@media (min-width: 1300px) { .pm-cols { columns: 2; } }
